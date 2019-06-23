@@ -1,4 +1,7 @@
 *.pyc
+*.ipynb
+*.onnx
 __pycache__
 result
 .DS_Store
+.ipynb_checkpoints
