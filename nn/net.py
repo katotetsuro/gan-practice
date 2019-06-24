@@ -21,6 +21,24 @@ def add_noise(device, h, sigma=0.2):
     else:
         return h
 
+def upsample_x2(x):
+    _, c, h, w = x.shape
+    x = F.reshape(x, (-1, 1))
+    x = F.concat([x, x])
+    x = F.reshape(x, (-1, w*2))
+    x = F.concat([x, x])
+    return F.reshape(x, (-1, c, h*2, w*2))
+ 
+class UpsampleConvolution(chainer.Chain):
+
+    def __init__(self, in_channels, out_channels, k=3, s=1, p=0, w=None):
+        super().__init__()
+        with self.init_scope():
+            self.conv = L.Convolution2D(in_channels, out_channels, k, s, p, initialW=w)
+
+    def forward(self, x):
+        h = upsample_x2(x)
+        return self.conv(h)
 
 class Generator(chainer.Chain):
 
@@ -34,10 +52,11 @@ class Generator(chainer.Chain):
             w = chainer.initializers.Normal(wscale)
             self.l0 = L.Linear(self.n_hidden, bottom_width * bottom_width * ch,
                                initialW=w)
-            self.dc1 = L.Deconvolution2D(ch, ch // 2, 4, 2, 1, initialW=w)
-            self.dc2 = L.Deconvolution2D(ch // 2, ch // 4, 4, 2, 1, initialW=w)
-            self.dc3 = L.Deconvolution2D(ch // 4, ch // 8, 4, 2, 1, initialW=w)
-            self.dc4 = L.Deconvolution2D(ch // 8, 3, 3, 1, 1, initialW=w)
+            self.dc1 = UpsampleConvolution(ch, ch//2, w=w)
+            self.dc2 = UpsampleConvolution(ch//2, ch//4, w=w)
+            self.dc3 = UpsampleConvolution(ch//4, ch//8, w=w)
+            self.dc4 = UpsampleConvolution(ch//8, 3, k=5, w=w)
+
             self.bn0 = L.BatchNormalization(bottom_width * bottom_width * ch)
             self.bn1 = L.BatchNormalization(ch // 2)
             self.bn2 = L.BatchNormalization(ch // 4)
