@@ -10,24 +10,50 @@
           const size = 100
           let hidden = new Array()
           for (let i=0; i<size; ++i) {
-              hidden[i] = 0
+              hidden[i] = Math.random() * 2 - 1
           }
           return new Tensor(hidden, 'float32', [1, 100])
           // return hidden
       }
-      // create a session
-      const myOnnxSession = new onnx.InferenceSession();
-      // load the ONNX model file
-      myOnnxSession.loadModel("gen.onnx").then(() => {
+
+      var session;
+      function init() {
+        if (!session) {
+          session = new onnx.InferenceSession({backendHint: 'webgl'});
+          // load the ONNX model file
+          session.loadModel("gen.onnx").then(() => {
+            console.log('model loaded')
+            var button = document.getElementById('generate_button')
+            button.disabled = false;
+          })
+        }
+      }
+
+      function generate() {
         // generate model input
         const inferenceInputs = getInputs();
         // execute the model
-        myOnnxSession.run([inferenceInputs]).then(output => {
+        session.run([inferenceInputs]).then(output => {
           // consume the output
           const outputTensor = output.values().next().value;
-          console.log(`model output tensor: ${outputTensor.data}.`);
+          let uint8buffer = new Uint8ClampedArray(outputTensor.data);
+
+          //描画コンテキストの取得
+          var canvas = document.getElementById('output');
+          if (canvas.getContext) {
+            var context = canvas.getContext('2d');
+            let data = new ImageData(uint8buffer, 32, 32)
+            context.putImageData(data, 0, 0);
+            context.scale(4, 4);
+            context.drawImage(canvas, 0, 0)
+            context.resetTransform()
+          }        
         });
-      });
+      }
+
+      init();
     </script>
+    <canvas id="output" width="128" height="128" style="background-color:yellow;"></canvas>
+    <button id="generate_button" onclick="generate()" disabled>generate</button>
   </body>
 </html>
