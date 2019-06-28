@@ -68,7 +68,9 @@ class Generator(chainer.Chain):
             .astype(dtype)
 
     def forward(self, z):
-        h = F.reshape(F.relu(self.bn0(self.l0(z))),
+        z = self.l0(z)
+        z = F.reshape(z, (-1, self.ch * self.bottom_width*self.bottom_width, 1, 1))
+        h = F.reshape(F.relu(self.bn0(z)),
                       (len(z), self.ch, self.bottom_width, self.bottom_width))
         h = F.relu(self.bn1(self.dc1(h)))
         h = F.relu(self.bn2(self.dc2(h)))
