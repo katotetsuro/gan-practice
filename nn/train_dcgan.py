@@ -2,8 +2,10 @@
 import argparse
 import os
 import warnings
+from pathlib import Path
 
-import numpy
+import numpy as np
+import h5py
 
 import chainer
 from chainer import training
@@ -50,7 +52,7 @@ def main():
                        help='GPU ID (negative value indicates CPU)')
     args = parser.parse_args()
 
-    if chainer.get_dtype() == numpy.float16:
+    if chainer.get_dtype() == np.float16:
         warnings.warn(
             'This example may cause NaN in FP16 mode.', RuntimeWarning)
 
@@ -84,6 +86,9 @@ def main():
     if args.dataset == '':
         # Load the CIFAR10 dataset if args.dataset is not specified
         train, _ = chainer.datasets.get_cifar10(withlabel=False, scale=255.)
+    elif args.dataset.endswith('h5'):
+        print('parsing as food-101 from kaggle')
+        train = h5py.File(args.dataset, 'r')['images'].value.astype(np.float32).transpose(0, 3, 1, 2)
     else:
         all_files = os.listdir(args.dataset)
         image_files = [f for f in all_files if ('png' in f or 'jpg' in f)]
