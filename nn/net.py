@@ -55,12 +55,14 @@ class Generator(chainer.Chain):
             self.dc1 = UpsampleConvolution(ch, ch//2, w=w)
             self.dc2 = UpsampleConvolution(ch//2, ch//4, w=w)
             self.dc3 = UpsampleConvolution(ch//4, ch//8, w=w)
-            self.dc4 = UpsampleConvolution(ch//8, 3, k=5, w=w)
+            self.dc4 = UpsampleConvolution(ch//8, ch//8, w=w)
+            self.dc5 = UpsampleConvolution(ch//8, 3, k=5, w=w)
 
             self.bn0 = L.BatchNormalization(bottom_width * bottom_width * ch)
             self.bn1 = L.BatchNormalization(ch // 2)
             self.bn2 = L.BatchNormalization(ch // 4)
             self.bn3 = L.BatchNormalization(ch // 8)
+            self.bn4 = L.BatchNormalization(ch // 8)
 
     def make_hidden(self, batchsize):
         dtype = chainer.get_dtype()
@@ -75,7 +77,8 @@ class Generator(chainer.Chain):
         h = F.relu(self.bn1(self.dc1(h)))
         h = F.relu(self.bn2(self.dc2(h)))
         h = F.relu(self.bn3(self.dc3(h)))
-        x = F.sigmoid(self.dc4(h))
+        h = F.relu(self.bn4(self.dc4(h)))
+        x = F.sigmoid(self.dc5(h))
         return x
 
 
@@ -92,7 +95,7 @@ class Discriminator(chainer.Chain):
             self.c2_0 = L.Convolution2D(ch // 2, ch // 2, 3, 1, 1, initialW=w)
             self.c2_1 = L.Convolution2D(ch // 2, ch // 1, 4, 2, 1, initialW=w)
             self.c3_0 = L.Convolution2D(ch // 1, ch // 1, 3, 1, 1, initialW=w)
-            self.l4 = L.Linear(bottom_width * bottom_width * ch, 1, initialW=w)
+            self.l4 = L.Linear(None, 1, initialW=w)
             self.bn0_1 = L.BatchNormalization(ch // 4, use_gamma=False)
             self.bn1_0 = L.BatchNormalization(ch // 4, use_gamma=False)
             self.bn1_1 = L.BatchNormalization(ch // 2, use_gamma=False)
@@ -110,4 +113,4 @@ class Discriminator(chainer.Chain):
         h = F.leaky_relu(add_noise(device, self.bn2_0(self.c2_0(h))))
         h = F.leaky_relu(add_noise(device, self.bn2_1(self.c2_1(h))))
         h = F.leaky_relu(add_noise(device, self.bn3_0(self.c3_0(h))))
-        return self.l4(h)
+        return self.l4(F.average_pooling_2d(h, h.shape[2]))

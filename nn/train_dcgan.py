@@ -19,7 +19,7 @@ from visualize import out_generated_image
 
 class DataAugmentation():
     def __call__(self, in_data):
-        return resize_contain(in_data, (32, 32))
+        return resize_contain(in_data, (64, 64))
 
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: DCGAN')
@@ -89,6 +89,9 @@ def main():
     elif args.dataset.endswith('h5'):
         print('parsing as food-101 from kaggle')
         train = h5py.File(args.dataset, 'r')['images'].value.astype(np.float32).transpose(0, 3, 1, 2)
+    elif args.dataset.endswith('npy'):
+        print('parsing as preprocessed npy')
+        train = np.load(args.dataset).astype(np.float32)
     else:
         all_files = os.listdir(args.dataset)
         image_files = [f for f in all_files if ('png' in f or 'jpg' in f)]
