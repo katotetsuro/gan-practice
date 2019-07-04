@@ -56,8 +56,11 @@ def main():
         warnings.warn(
             'This example may cause NaN in FP16 mode.', RuntimeWarning)
 
-    device = chainer.get_device(args.device)
-    device.use()
+    try:
+        device = chainer.get_device(args.device)
+        device.use()
+    except AttributeError:
+        device = int(args.device)
 
     print('Device: {}'.format(device))
     print('# Minibatch-size: {}'.format(args.batchsize))
