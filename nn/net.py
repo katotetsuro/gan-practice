@@ -4,19 +4,19 @@ import numpy
 import chainer
 import chainer.functions as F
 import chainer.links as L
-import chainerx
+#import chainerx
 
 
 def add_noise(device, h, sigma=0.2):
     if chainer.config.train:
         xp = device.xp
         # TODO(niboshi): Support random.randn in ChainerX
-        if device.xp is chainerx:
-            fallback_device = device.fallback_device
-            with chainer.using_device(fallback_device):
-                randn = device.send(fallback_device.xp.random.randn(*h.shape))
-        else:
-            randn = xp.random.randn(*h.shape)
+        # if device.xp is chainerx:
+        #     fallback_device = device.fallback_device
+        #     with chainer.using_device(fallback_device):
+        #         randn = device.send(fallback_device.xp.random.randn(*h.shape))
+        # else:
+        randn = xp.random.randn(*h.shape)
         return h + sigma * randn
     else:
         return h
