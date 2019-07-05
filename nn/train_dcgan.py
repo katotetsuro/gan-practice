@@ -46,10 +46,7 @@ def main():
                         help='Interval of snapshot')
     parser.add_argument('--display_interval', type=int, default=1000,
                         help='Interval of displaying log to console')
-    group = parser.add_argument_group('deprecated arguments')
-    group.add_argument('--gpu', '-g', dest='device',
-                       type=int, nargs='?', const=0,
-                       help='GPU ID (negative value indicates CPU)')
+    parser.add_argument('--use-pixelshuffler', action='store_true')
     args = parser.parse_args()
 
     if chainer.get_dtype() == np.float16:
@@ -66,7 +63,7 @@ def main():
     print('')
 
     # Set up a neural network to train
-    gen = Generator(n_hidden=args.n_hidden)
+    gen = Generator(n_hidden=args.n_hidden, use_pixelshuffler=args.use_pixelshuffler)
     dis = Discriminator()
 
     gen.to_device(device)  # Copy the model to the device

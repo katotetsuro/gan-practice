@@ -31,7 +31,7 @@ def upsample_x2(x):
  
 class UpsampleConvolution(chainer.Chain):
 
-    def __init__(self, in_channels, out_channels, k=3, s=1, p=0, w=None):
+    def __init__(self, in_channels, out_channels, k=3, s=1, p=1, w=None):
         super().__init__()
         with self.init_scope():
             self.conv = L.Convolution2D(in_channels, out_channels, k, s, p, initialW=w)
@@ -40,9 +40,33 @@ class UpsampleConvolution(chainer.Chain):
         h = upsample_x2(x)
         return self.conv(h)
 
+class PixelShuffler(chainer.Chain):
+    """make spatial size 2time bigger and reduce channels to half
+    """
+    def __init__(self, in_channels, ksize=3, stride=1, pad=1, r=2, w=None):
+        super().__init__()
+        with self.init_scope():
+            self.conv = L.Convolution2D(in_channels, in_channels * (r**2) // 2, ksize, stride, pad, initialW=w)
+        self.r = r
+
+    def forward(self, x):
+        r = self.r
+        out = self.conv(x)
+        batchsize = out.shape[0]
+        in_channels = out.shape[1]
+        out_channels = in_channels // (r ** 2)
+        in_height = out.shape[2]
+        in_width = out.shape[3]
+        out_height = in_height * r
+        out_width = in_width * r
+        out = F.reshape(out, (batchsize, r, r, out_channels, in_height, in_width))
+        out = F.transpose(out, (0, 3, 4, 1, 5, 2))
+        out = F.reshape(out, (batchsize, out_channels, out_height, out_width))
+        return out
+
 class Generator(chainer.Chain):
 
-    def __init__(self, n_hidden, bottom_width=4, ch=512, wscale=0.02):
+    def __init__(self, n_hidden, bottom_width=4, ch=512, wscale=0.02, use_pixelshuffler=False):
         super(Generator, self).__init__()
         self.n_hidden = n_hidden
         self.ch = ch
@@ -52,11 +76,19 @@ class Generator(chainer.Chain):
             w = chainer.initializers.Normal(wscale)
             self.l0 = L.Linear(self.n_hidden, bottom_width * bottom_width * ch,
                                initialW=w)
-            self.dc1 = UpsampleConvolution(ch, ch//2, w=w)
-            self.dc2 = UpsampleConvolution(ch//2, ch//4, w=w)
-            self.dc3 = UpsampleConvolution(ch//4, ch//8, w=w)
-            self.dc4 = UpsampleConvolution(ch//8, ch//8, w=w)
-            self.dc5 = UpsampleConvolution(ch//8, 3, k=5, w=w)
+            if use_pixelshuffler:
+                print('using pixel shuffler')
+                self.dc1 = PixelShuffler(ch, w=w)
+                self.dc2 = PixelShuffler(ch//2, w=w)
+                self.dc3 = PixelShuffler(ch//4, w=w)
+                self.dc4 = PixelShuffler(ch//8, w=w)
+                self.dc5 = UpsampleConvolution(ch//8, 3, w=w)
+            else:
+                print('using upsample and convlution')
+                self.dc1 = UpsampleConvolution(ch, ch//2, w=w)
+                self.dc2 = UpsampleConvolution(ch//2, ch//4, w=w)
+                self.dc3 = UpsampleConvolution(ch//4, ch//8, w=w)
+                self.dc5 = UpsampleConvolution(ch//8, 3, w=w)
 
             self.bn0 = L.BatchNormalization(bottom_width * bottom_width * ch)
             self.bn1 = L.BatchNormalization(ch // 2)
@@ -77,7 +109,6 @@ class Generator(chainer.Chain):
         h = F.relu(self.bn1(self.dc1(h)))
         h = F.relu(self.bn2(self.dc2(h)))
         h = F.relu(self.bn3(self.dc3(h)))
-        #h = F.relu(self.bn4(self.dc4(h)))
         x = F.sigmoid(self.dc5(h))
         return x
 
